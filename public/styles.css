@@ -1,18 +1,19 @@
 /* Tema baseado no guia da marca TOTVS (https://marca.totvs.com/identidade-visual) — mesmos tokens dos demais apps (totvs_ctk.py).
    Cores de marca (constantes, usadas em fundos de tags/selos — o texto sobre elas é calculado por contraste, ver inkFor() em app.js):
      Azul #00DBFF, Roxo #A44DFF, Verde #00FFD4, Limão #D9FF65, Laranja #FF8900, Rosa #FF009E, Azul-marinho #002233.
-   Escuro (padrão): fundo azul-marinho, texto branco, destaque azul-ciano — o visual original do app.
+   Escuro (padrão): AMOLED — fundo preto puro, painéis em cinza quase preto, texto branco, destaque azul-ciano.
    Claro: fundo quase branco (cinza da marca), texto azul-marinho, destaque azul #0A46EA — o "Azul primário" que o
    próprio site institucional usa para botões/links sobre fundo branco (o ciano não tem contraste suficiente em fundo claro).
-   Tipografia de sistema: Verdana (a fonte institucional TOTVS é proprietária). Gradiente só como fundo decorativo. */
+   Tipografia: Source Serif 4 (corpo, no espírito da Tiempos usada no Claude) e Fraunces (títulos, no espírito da Copernicus) —
+   Tiempos/Copernicus são fontes proprietárias (Klim Type Foundry) e não podem ser embutidas sem licença. Gradiente só como fundo decorativo. */
 :root {
   --navy: #002233; --cyan: #00DBFF; --purple: #A44DFF; --green: #00FFD4; --lime: #D9FF65; --orange: #FF8900; --pink: #FF009E;
 
-  /* ---- Escuro (padrão) ---- */
-  --bg: var(--navy); --s0: #001B2A; --s1: #003144; --s2: #003D52; --border: #0A5670; --selection: #005A78; --muted: #8FB0BF; --text: #fff;
-  --accent: var(--cyan); --accent-hover: #00B4D2; --accent-text: var(--navy);
+  /* ---- Escuro (padrão, AMOLED) ---- */
+  --bg: #000000; --s0: #0A0A0A; --s1: #121212; --s2: #1A1A1A; --border: #262626; --selection: #00384A; --muted: #9CA3AF; --text: #fff;
+  --accent: var(--cyan); --accent-hover: #00B4D2; --accent-text: #000000;
   --ok-text: var(--green); --warn-text: var(--orange); --bad-text: #FF5CB8;
-  --shadow-modal: 0 24px 70px rgba(0,0,0,.55); --shadow-toast: 0 8px 28px rgba(0,0,0,.5); --overlay: rgba(0, 12, 20, .78);
+  --shadow-modal: 0 24px 70px rgba(0,0,0,.75); --shadow-toast: 0 8px 28px rgba(0,0,0,.7); --overlay: rgba(0, 0, 0, .85);
   color-scheme: dark;
 }
 
@@ -35,10 +36,10 @@
   color-scheme: light;
 }
 :root[data-theme="dark"] {
-  --bg: var(--navy); --s0: #001B2A; --s1: #003144; --s2: #003D52; --border: #0A5670; --selection: #005A78; --muted: #8FB0BF; --text: #fff;
-  --accent: var(--cyan); --accent-hover: #00B4D2; --accent-text: var(--navy);
+  --bg: #000000; --s0: #0A0A0A; --s1: #121212; --s2: #1A1A1A; --border: #262626; --selection: #00384A; --muted: #9CA3AF; --text: #fff;
+  --accent: var(--cyan); --accent-hover: #00B4D2; --accent-text: #000000;
   --ok-text: var(--green); --warn-text: var(--orange); --bad-text: #FF5CB8;
-  --shadow-modal: 0 24px 70px rgba(0,0,0,.55); --shadow-toast: 0 8px 28px rgba(0,0,0,.5); --overlay: rgba(0, 12, 20, .78);
+  --shadow-modal: 0 24px 70px rgba(0,0,0,.75); --shadow-toast: 0 8px 28px rgba(0,0,0,.7); --overlay: rgba(0, 0, 0, .85);
   color-scheme: dark;
 }
 
@@ -48,9 +49,13 @@ body {
   font: 13.5px/1.55 var(--font, Verdana, Geneva, "DejaVu Sans", sans-serif); background: var(--bg); color: var(--text);
   transition: background-color .15s ease, color .15s ease;
 }
-:root { --font: Verdana, Geneva, "DejaVu Sans", sans-serif; --mono: Consolas, "Cascadia Mono", monospace; --code-bg: #0B141D; --code-text: #D7E6F0; }
+:root {
+  --font: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --mono: Consolas, "Cascadia Mono", monospace; --code-bg: #0B141D; --code-text: #D7E6F0;
+}
 body::before { content: ""; position: fixed; inset: 0 0 auto 0; height: 4px; z-index: 300; background: linear-gradient(90deg, var(--navy) 0%, var(--accent) 100%); }
-h1, h2, h3 { margin: 0; font-weight: 700; }
+h1, h2, h3 { margin: 0; font-weight: 700; font-family: var(--font-display); }
 h1 { font-size: 21px; letter-spacing: .1px; overflow-wrap: anywhere; } h2 { font-size: 14px; } h3 { font-size: 13px; }
 a { color: var(--accent); }
 .muted { color: var(--muted); } .small { font-size: 12px; } .mono { font-family: var(--mono); font-size: 12.5px; word-break: break-all; }
@@ -60,7 +65,7 @@ a { color: var(--accent); }
 .sidebar { background: var(--s0); border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; transition: background-color .15s ease, border-color .15s ease; }
 .brand { padding: 18px 16px 14px; display: flex; align-items: center; gap: 12px; }
 .brand img { width: 36px; height: 36px; border-radius: 9px; flex: none; }
-.brand b { display: block; font-size: 13.5px; line-height: 1.25; } .brand span { font-size: 11px; color: var(--muted); }
+.brand b { display: block; font-size: 13.5px; line-height: 1.25; font-family: var(--font-display); } .brand span { font-size: 11px; color: var(--muted); }
 #nav { flex: 1; overflow-x: hidden; overflow-y: auto; padding: 4px 8px; }
 .nav-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; border-left: 3px solid transparent; background: transparent; color: var(--text); padding: 8px 9px; border-radius: 8px; cursor: pointer; font: inherit; transition: background-color .1s ease; }
 .nav-item:hover { background: var(--s2); }
