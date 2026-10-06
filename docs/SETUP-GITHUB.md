@@ -1,18 +1,16 @@
 # SETUP-GITHUB — passo a passo
 
-> GitHub guarda **código, migrations, scripts e documentação técnica**. Nunca dados, segredos ou builds.
-> Comandos em PowerShell ou Git Bash, na pasta do projeto. Cada **AÇÃO NECESSÁRIA DO USUÁRIO** depende da sua conta.
+> GitHub guarda **código, scripts e documentação técnica**. Nunca dados, segredos ou builds.
+> Comandos em Bash/Git Bash, na pasta do projeto. Cada **AÇÃO NECESSÁRIA DO USUÁRIO** depende da sua conta.
 
 ## 1. O que NUNCA entra no Git
 | Nunca | Por quê | Proteção |
 |---|---|---|
 | `data/`, `projects.json*`, `audit.log`, `backups/`, `exports/`, `*.gphours` | dados reais, PII, horas | `.gitignore` + `scan-secrets` (caminho proibido) |
-| `.env`, `*.pem`, `*.key`, `*.pfx`, `*.dpapi*`, `signing/` | segredos | `.gitignore` + `scan-secrets` |
-| service role / secret key, `GP_KEK_*`, PAT do GitHub, senhas, refresh tokens | segredos de servidor | padrões do `scan-secrets` |
-| Project URL / publishable key do Supabase | não são segredos, mas ficam no `.env` para não expor o endpoint | padrão do `scan-secrets` |
-| nomes de clientes, contatos, e-mails, telefones, servidores reais (inclusive em testes e docs) | dado de cliente/pessoal | **canários**: o `scan-secrets` compara com os valores reais de `data/projects.json` |
-| `app/`, `node_modules/`, `dist/` | build/dependências (~400 MB) | `.gitignore` |
-Testes usam nomes fictícios (`Cliente Alfa`, `192.0.2.x`). Migrations e `supabase/functions` **entram** (sem segredo).
+| `.env`, `*.pem`, `*.key`, `*.pfx`, `signing/` | segredos | `.gitignore` + `scan-secrets` |
+| `GP_SECRET_KEY`, senhas de banco, tokens | segredos | padrões do `scan-secrets` |
+| nomes de clientes, contatos, e-mails, telefones, servidores reais (inclusive em docs) | dado de cliente/pessoal | **canários**: o `scan-secrets` compara com os valores reais de `data/projects.json` |
+| `node_modules/`, `dist/` | dependências/build (~400 MB) | `.gitignore` |
 
 ## 2. Criar o repositório
 > **AÇÃO NECESSÁRIA DO USUÁRIO**
@@ -40,9 +38,9 @@ git add .
 ```bash
 git status
 ```
-Confira a lista: **não** pode aparecer `data/`, `app/`, `node_modules/`, `.env`, `backups/`. Se aparecer, pare e corrija o `.gitignore`.
+Confira a lista: **não** pode aparecer `data/`, `node_modules/`, `.env`, `backups/`. Se aparecer, pare e corrija o `.gitignore`.
 ```bash
-git commit -m "Versão inicial (código, migrations e documentação)"
+git commit -m "Versão inicial"
 ```
 
 ## 4. Ligar ao GitHub
@@ -58,24 +56,29 @@ arquivo, `.env` ou no projeto.
 
 ## 5. Fluxo do dia a dia
 - Trabalho novo: `git switch -c feature/<nome>` → commits → push → Pull Request para `main`.
-- Antes de cada commit o hook confere segredos; antes de cada PR rode `npm test`.
-- Versão publicada = **tag**: `git tag v1.1.0` e `git push origin v1.1.0`. O pacote do app é gerado a partir da tag (Central de Atualizações, Fase 9).
+- Antes de cada commit o hook confere segredos.
+- Versão publicada = **tag**: `git tag v1.1.0` e `git push origin v1.1.0`.
 
 ## 6. Segunda máquina
-Há dois papéis diferentes:
+O app é local/web (`npm run start:web`); não há pacote desktop nem sincronização em nuvem. Para rodar em outra máquina:
+```bash
+git clone https://github.com/<usuario>/gerenciador-projetos.git
+```
+```bash
+npm ci
+```
+Copie `.env.example` para `.env`, gere um `GP_SECRET_KEY` próprio (veja `.env.example`) e rode `npm run start:web`.
+Os dados (`data/app.db` ou `data/projects.json`) **não vão pelo Git** — cada máquina tem os seus. Para levar dados de uma
+máquina para outra, copie a pasta `data/` manualmente (ou exporte/importe pelas telas do app, quando disponível).
 
-| Máquina | Precisa de | Como |
-|---|---|---|
-| **Desenvolvimento/build** (você) | Git, Node 24, código | `git clone https://github.com/<usuario>/gerenciador-projetos.git C:\Projetos\GerenciadorProjetos` → `npm ci` → criar `.env` (seção 3 do SETUP-SUPABASE) → `npm test` |
-| **Uso** (você em outra máquina, Maria…) | só o aplicativo | instalar o pacote publicado (Central de Atualizações / pasta de instalação). **Sem Git, sem `.env`, sem token.** Login com o próprio usuário |
-Os dados de cada pessoa (horas, vínculos de pastas, senhas de conexão) ficam em `%LOCALAPPDATA%\GerenciadorProjetos\` e **nunca**
-são tocados por atualização de código. O controle de horas da máquina A só vai para a máquina B por **exportar/importar** (Fase 5).
-
-## 7. Atualizar
-- **Máquina de desenvolvimento**: `git pull` na pasta do código → `npm ci` → `npm test` → build. Hoje `data/` ainda fica dentro da pasta
-  do código, mas é ignorado pelo Git (o `pull` não o altera). A partir da Fase 5 os dados saem dessa pasta.
-- **Máquinas de uso**: nunca `git pull`. A Central de Atualizações baixa o pacote **assinado**, confere hash e assinatura e troca só a
-  pasta de instalação, guardando a versão anterior.
+## 7. Atualizar o código
+```bash
+git pull
+```
+```bash
+npm ci
+```
+`data/` é ignorado pelo Git — o `pull` não o altera.
 
 ## 8. Recuperar
 | Situação | Comando |
@@ -83,7 +86,7 @@ são tocados por atualização de código. O controle de horas da máquina A só
 | Ver histórico | `git log --oneline --decorate -20` |
 | Desfazer um commit já publicado | `git revert <hash>` (não reescreve histórico) |
 | Voltar para uma versão | `git switch --detach v1.0.0` |
-| Perdeu a máquina | clonar de novo (seção 6); dados compartilhados estão no Supabase; dados locais só no backup local |
+| Perdeu a máquina | clonar de novo (seção 6); dados locais só existem se houver backup da pasta `data/` |
 
 ## 9. Validar que nenhum segredo foi commitado
 ```bash
@@ -91,18 +94,18 @@ npm run scan:secrets
 ```
 Histórico inteiro (padrões principais):
 ```bash
-git log -p --all | findstr /R /C:"sb_secret_" /C:"BEGIN.*PRIVATE KEY" /C:"AQAAANCMnd8BFdERjHoAwE" /C:"service_role"
+git log -p --all | grep -E "GP_SECRET_KEY|BEGIN.*PRIVATE KEY"
 ```
 Opcional, mais completo: [gitleaks](https://github.com/gitleaks/gitleaks) → `gitleaks git` na pasta do projeto.
 
 ## 10. Se um segredo vazou
-1. **Primeiro rotacione** o segredo (ele já deve ser considerado público) — procedimentos em [SECURITY.md](SECURITY.md) §Rotação.
+1. **Primeiro rotacione** o segredo (gere um `GP_SECRET_KEY` novo e re-cifre as senhas salvas; ele já deve ser considerado público).
 2. Depois limpe o histórico (`git filter-repo`) e force o push com cuidado — isso **não** desfaz o vazamento; só evita novas cópias.
-3. Registre o incidente (SECURITY.md §Incidente).
+3. Registre o incidente (`data/audit.log` ou onde sua equipe acompanha incidentes).
 
 ## 11. Checklist
 - [ ] Repositório privado criado, 2FA ligado, regra de proteção na `main`
 - [ ] `git config core.hooksPath .githooks` feito
 - [ ] `npm run scan:secrets` limpo antes do primeiro commit
-- [ ] `git status` sem `data/`, `app/`, `node_modules/`, `.env`
+- [ ] `git status` sem `data/`, `node_modules/`, `.env`
 - [ ] Push feito sem PAT em arquivo

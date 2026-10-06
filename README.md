@@ -459,7 +459,6 @@ recusadas/truncadas com aviso; ainda não há editor visual de conflitos, stash/
 ## Testes
 
 ```
-npm test                      # testes unitários (plano, trava de segurança, cronograma, fórmulas, anexo de planilha, Workspace: projetos, caminhos, cópia entre projetos e conflitos, e Git por projeto com um remoto local; checklist: regras de avanço, sincronização, evidências, validação de anexos, N checklists por estágio e API; ciclos por tipo e versões; conexões (DPAPI, referência nas bases, importação); execução de scripts pelo checklist (travas, variáveis, confirmação, histórico); .gitignore; pasta inicial dos seletores; horas: pausas, sobreposição, meta/pendências, aviso, recuperação e exportação)
 node scripts/e2e-local.js     # ponta a ponta no SQL Server LOCAL
 ```
 
