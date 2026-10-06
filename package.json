@@ -8,7 +8,6 @@
     "start": "node server.js",
     "start:web": "GP_STORAGE_BACKEND=sqlite node server.js",
     "migrate:sqlite": "node scripts/migrate-to-sqlite.js",
-    "test": "node --test \"test/*.test.js\"",
     "scan:secrets": "node scripts/scan-secrets.js"
   },
   "engines": {
