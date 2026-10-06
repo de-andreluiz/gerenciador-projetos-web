@@ -46,7 +46,7 @@ function cleanUserVars(raw) {
 }
 const sha = (t) => crypto.createHash('sha256').update(t).digest('hex');
 
-function mount(app, { store, dataDir, SYS }) {
+function mount(app, { store, dataDir }) {
   const content = () => store.scripts();
   const list = () => store.data.scripts;
   const byId = (id) => list().find((s) => s.id === id) || (() => { throw httpError(404, 'Script não encontrado.'); })();
@@ -165,8 +165,7 @@ function mount(app, { store, dataDir, SYS }) {
     res.json({ ok: true });
   });
 
-  const explorer = SYS ? path.join(SYS, 'explorer.exe') : null;
-  // Abre para editar por fora: programa padrão (ex.: SSMS), VS Code ou "mostrar no Explorer". Só o arquivo cadastrado; nada é executado.
+  // Abre para editar por fora: VS Code, ou recusa (sem navegador de arquivos do SO no modo Web). Só o arquivo cadastrado; nada é executado.
   app.post('/api/scripts/:id/open', async (req, res) => {
     const s = byId(req.params.id);
     if (!(await content().exists(s))) throw httpError(404, 'O arquivo do script não foi encontrado.');
@@ -178,20 +177,13 @@ function mount(app, { store, dataDir, SYS }) {
       const env = { ...process.env };
       delete env.ELECTRON_RUN_AS_NODE; // o VS Code também é Electron: não pode herdar o modo "node" do app
       spawn(code, [abs], { detached: true, stdio: 'ignore', env }).unref();
-    } else if (how === 'explorer') {
-      if (!explorer) throw httpError(400, 'Navegador de arquivos do SO indisponível no modo Web.');
-      spawn(explorer, [`/select,${abs}`], { detached: true, stdio: 'ignore' }).unref();
+      res.json({ ok: true });
     } else {
-      if (!explorer) throw httpError(400, 'Navegador de arquivos do SO indisponível no modo Web.');
-      spawn(explorer, [abs], { detached: true, stdio: 'ignore' }).unref();
+      throw httpError(400, 'Navegador de arquivos do SO indisponível no modo Web.');
     }
-    res.json({ ok: true });
   });
   app.post('/api/scripts-folder/open', (req, res) => {
-    if (!explorer) throw httpError(400, 'Navegador de arquivos do SO indisponível no modo Web.');
-    fs.mkdirSync(content().dir, { recursive: true });
-    spawn(explorer, [content().dir], { detached: true, stdio: 'ignore' }).unref();
-    res.json({ ok: true });
+    throw httpError(400, 'Navegador de arquivos do SO indisponível no modo Web.');
   });
 
   // ---------- Uso no plano de importação ----------

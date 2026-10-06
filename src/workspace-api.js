@@ -38,8 +38,7 @@ async function mapLimit(list, n, fn) {
   return out;
 }
 
-function mount(app, { store, audit, SYS }) {
-  const explorer = SYS ? path.join(SYS, 'explorer.exe') : null;
+function mount(app, { store, audit }) {
   const cfg = () => store.data.workspace || (store.data.workspace = { root: '', aliases: {} });
   const files = () => new WorkspaceFiles(cfg().root);
   const log = (action, extra) => audit.log({ action, workspace: cfg().root, ...extra });
@@ -165,7 +164,7 @@ function mount(app, { store, audit, SYS }) {
     }
   });
 
-  // Abrir fora do app: VS Code (pasta do projeto + arquivo), aplicativo padrão do Windows ou Explorer.
+  // Abrir fora do app: VS Code (pasta do projeto + arquivo), ou recusa (sem navegador de arquivos do SO no modo Web).
   app.post('/api/wsm/open', (req, res) => {
     const ws = files();
     const rel = str(req.body.path, 1000);
@@ -181,15 +180,11 @@ function mount(app, { store, audit, SYS }) {
       const env = { ...process.env };
       delete env.ELECTRON_RUN_AS_NODE; // o VS Code também é Electron: não pode herdar o modo "node" do app
       spawn(code, args, { detached: true, stdio: 'ignore', env }).unref();
-    } else if (how === 'explorer' || isDir) {
-      if (!explorer) throw httpError(400, 'Navegador de arquivos do SO indisponível no modo Web.');
-      spawn(explorer, isDir ? [abs] : [`/select,${abs}`], { detached: true, stdio: 'ignore' }).unref();
-    } else {
-      if (BLOCK_DEFAULT_OPEN.test(abs)) throw httpError(400, 'Por segurança, programas e scripts do Windows não são abertos pelo app. Use “Abrir no Explorer”.');
-      if (!explorer) throw httpError(400, 'Navegador de arquivos do SO indisponível no modo Web.');
-      spawn(explorer, [abs], { detached: true, stdio: 'ignore' }).unref();
+      res.json({ ok: true });
+      return;
     }
-    res.json({ ok: true });
+    if (how !== 'explorer' && !isDir && BLOCK_DEFAULT_OPEN.test(abs)) throw httpError(400, 'Por segurança, programas e scripts do Windows não são abertos pelo app. Use “Abrir no Explorer”.');
+    throw httpError(400, 'Navegador de arquivos do SO indisponível no modo Web.');
   });
 
   // ---------- Git (por projeto: cada projeto é um repositório independente) ----------

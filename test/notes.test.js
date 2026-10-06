@@ -1,8 +1,7 @@
 // Observações do projeto: texto + referências a links, arquivos e pastas.
-// Nada abre o Explorer de verdade (lançador simulado) e nenhum arquivo referenciado é tocado.
+// Nenhum arquivo referenciado é tocado; abrir arquivo/pasta no SO não está disponível no modo Web.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const EventEmitter = require('events');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -13,14 +12,10 @@ process.env.PORT = String(PORT);
 process.env.GP_DATA_DIR = path.join(tmp, 'data');
 
 const { app } = require('../server');
-const N = require('../src/notes-api');
-
-const spawned = [];
-N.setSpawn((exe, args) => { spawned.push({ exe: path.basename(exe), args }); const c = new EventEmitter(); c.unref = () => {}; return c; });
 
 let server;
 test.before(() => { server = app.listen(PORT, '127.0.0.1'); });
-test.after(() => { N.setSpawn(null); server.close(); fs.rmSync(tmp, { recursive: true, force: true }); });
+test.after(() => { server.close(); fs.rmSync(tmp, { recursive: true, force: true }); });
 
 const base = `http://localhost:${PORT}`;
 const api = async (method, url, body) => {
@@ -96,26 +91,21 @@ test('editar mantém o id dos anexos que já existiam; outros projetos e editar 
   assert.deepEqual(ok(await api('GET', `/api/projects/${other.id}/notes`)).notes, []);
 });
 
-test('abrir: arquivo → programa padrão, pasta → Explorer, “abrir pasta” do arquivo; link, ausente e tipo proibido recusados', async () => {
+test('abrir: validação (link/tipo/existência) roda antes; navegador de arquivos do SO indisponível no modo Web', async () => {
   const [pdf, docx] = S.note.refs;
-  ok(await api('POST', `/api/projects/${S.p.id}/notes/${S.note.id}/refs/${pdf.id}/open`));
-  assert.deepEqual(spawned.pop(), { exe: 'explorer.exe', args: [PDF] }); // o próprio arquivo, sem argumentos extras
-  ok(await api('POST', `/api/projects/${S.p.id}/notes/${S.note.id}/refs/${pdf.id}/open-folder`));
-  assert.deepEqual(spawned.pop(), { exe: 'explorer.exe', args: [FOLDER] });
+  assert.equal((await api('POST', `/api/projects/${S.p.id}/notes/${S.note.id}/refs/${pdf.id}/open`)).status, 400);
+  assert.match((await api('POST', `/api/projects/${S.p.id}/notes/${S.note.id}/refs/${pdf.id}/open`)).json.error, /indisponível no modo Web/);
+  assert.equal((await api('POST', `/api/projects/${S.p.id}/notes/${S.note.id}/refs/${pdf.id}/open-folder`)).status, 400);
   const withFolder = ok(await api('PUT', `/api/projects/${S.p.id}/notes/${S.note.id}`, { text: 'x', refs: [{ id: pdf.id, kind: 'file', path: PDF }, { kind: 'folder', path: FOLDER }, { kind: 'link', url: 'https://a.com' }, { kind: 'file', path: path.join(files, 'sumiu.pdf') }] })).notes.find((x) => x.id === S.note.id);
   const [, folder, link, gone] = withFolder.refs;
   assert.equal(gone.exists, false); assert.equal(folder.exists, true);
-  ok(await api('POST', `/api/projects/${S.p.id}/notes/${S.note.id}/refs/${folder.id}/open`));
-  assert.deepEqual(spawned.pop(), { exe: 'explorer.exe', args: [FOLDER] });
-  const n = spawned.length;
+  assert.equal((await api('POST', `/api/projects/${S.p.id}/notes/${S.note.id}/refs/${folder.id}/open`)).status, 400); // pasta existe: só não há navegador de arquivos no modo Web
   assert.equal((await api('POST', `/api/projects/${S.p.id}/notes/${S.note.id}/refs/${link.id}/open`)).status, 400); // link abre pelo navegador
-  assert.equal((await api('POST', `/api/projects/${S.p.id}/notes/${S.note.id}/refs/${gone.id}/open`)).status, 404); // arquivo movido
+  assert.equal((await api('POST', `/api/projects/${S.p.id}/notes/${S.note.id}/refs/${gone.id}/open`)).status, 404); // arquivo movido: validação roda antes do 400 do modo Web
   assert.equal((await api('POST', `/api/projects/${S.p.id}/notes/${S.note.id}/refs/zzz/open`)).status, 404);
   assert.equal((await api('POST', `/api/projects/${S.p.id}/notes/nada/refs/${pdf.id}/open`)).status, 404);
-  // extensão passou a ser proibida (dado adulterado no arquivo): não abre
   const raw = JSON.parse(fs.readFileSync(path.join(process.env.GP_DATA_DIR, 'projects.json'), 'utf8'));
   assert.equal(raw.projects.find((x) => x.id === S.p.id).notes.length >= 2, true);
-  assert.equal(spawned.length, n); // nada recusado abriu algo
   void docx;
 });
 

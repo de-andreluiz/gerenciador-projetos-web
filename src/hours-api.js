@@ -1,6 +1,5 @@
 // Rotas do controle de horas (regras em src/hours.js; planilha em src/hours-export.js).
 // O servidor é a fonte do tempo: cada ação grava timestamps reais e a tela apenas exibe (e refaz a conta a cada recarga).
-const path = require('path');
 const { httpError, uid, str } = require('./util');
 const E = require('./evidence');
 const EH = require('./evidence-http');
@@ -16,10 +15,9 @@ const clock = { now: () => Date.now() }; // trocável nos testes
 const { who } = require('./auth/identity');
 const NOW_TOLERANCE_MS = 2000;
 
-function mount(app, { store, audit, dataDir, SYS }) {
+function mount(app, { store, audit, dataDir }) {
   const data = () => store.data;
-  const files = () => store.files('hours-evidence'); // SEMPRE local (horas não vão à nuvem — ADR-014); no modo nuvem, na pasta do usuário
-  const explorer = SYS ? path.join(SYS, 'explorer.exe') : null;
+  const files = () => store.files('hours-evidence');
   const log = (action, extra = {}) => audit.log({ action, by: who(), ...extra });
   const nowMs = () => clock.now();
 
@@ -359,11 +357,6 @@ function mount(app, { store, audit, dataDir, SYS }) {
   app.get('/api/hours/notes/:id/evidences/:eid/file', async (req, res) => {
     const n = noteOrThrow(req.params.id);
     await EH.sendEvidence(res, files(), evOfNote(n, req.params.eid), { inline: req.query.inline === '1' });
-  });
-  app.post('/api/hours/notes/:id/evidences/:eid/open', async (req, res) => {
-    const n = noteOrThrow(req.params.id);
-    await EH.openEvidence(explorer, files(), evOfNote(n, req.params.eid), { folder: !!(req.body || {}).folder });
-    res.json({ ok: true });
   });
   app.delete('/api/hours/notes/:id/evidences/:eid', async (req, res) => {
     const n = noteOrThrow(req.params.id);

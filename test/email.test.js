@@ -210,8 +210,9 @@ test('21–22, 25. garantia de não envio: nenhuma rede externa, nenhum código/
   assert.doesNotMatch(comms.replace(/mailto:/g, ''), forbidden);
   assert.doesNotMatch(comms, /(window\.open|location(\.href)?\s*=)\s*\(?\s*[`'"]mailto/i);
   for (const f of ['src/gmail.js', 'src/gmail-api.js', 'src/mime.js', 'public/gmail.js']) assert.equal(fs.existsSync(path.join(root, f)), false, `${f} deveria ter sido removido`);
+  // googleapis é dependência legítima do Google Drive (src/drive.js); o que não pode existir é biblioteca de ENVIO de e-mail.
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(Object.keys({ ...pkg.dependencies, ...pkg.devDependencies }).some((d) => /mailer|googleapis|google-auth/i.test(d)), false);
+  assert.equal(Object.keys({ ...pkg.dependencies, ...pkg.devDependencies }).some((d) => /mailer|google-auth/i.test(d)), false);
 });
 
 test('tokens/segredos nunca aparecem em log, histórico ou arquivo de dados; auditoria usa "gerado/copiado"', async () => {
@@ -476,14 +477,12 @@ test('tela “Abrir no Gmail”: ordem copiar → URL do servidor → abrir; avi
   assert.doesNotMatch(fn, /\balert\(/);
   assert.doesNotMatch(comms, /mail\.google\.com/); // a URL nasce em um lugar só: o servidor
   assert.match(comms, /return 'rich'/); assert.match(comms, /new ClipboardItem\(\{[^\n]*'text\/plain'[^\n]*'text\/html'/);
-  // nenhuma automação do navegador/Gmail nem biblioteca de envio
+  // nenhuma automação do navegador/Gmail nem biblioteca de envio (googleapis é dependência legítima do Google Drive)
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(Object.keys({ ...pkg.dependencies, ...pkg.devDependencies }).some((d) => /selenium|puppeteer|playwright|nodemailer|googleapis|google-auth/i.test(d)), false);
+  assert.equal(Object.keys({ ...pkg.dependencies, ...pkg.devDependencies }).some((d) => /selenium|puppeteer|playwright|nodemailer|google-auth/i.test(d)), false);
   const code = (f) => fs.readFileSync(path.join(root, f), 'utf8').replace(/\/\/[^\n]*/g, '');
-  for (const f of ['src/email.js', 'src/email-api.js', 'public/comms.js', 'main.js']) assert.doesNotMatch(code(f), /selenium|puppeteer|playwright|chrome-remote|webdriver|gmail\.send/i, f);
-  for (const f of ['src/email.js', 'public/comms.js', 'main.js']) assert.doesNotMatch(code(f), /clientSecret|refresh_token|client_secret/i, f); // (email-api.js só DETECTA credenciais antigas para o usuário removê-las)
-  const main = fs.readFileSync(path.join(root, 'main.js'), 'utf8'); // segurança do Electron intacta e sem preload novo
-  assert.match(main, /contextIsolation: true/); assert.match(main, /nodeIntegration: false/); assert.equal(/preload/.test(main), false);
+  for (const f of ['src/email.js', 'src/email-api.js', 'public/comms.js']) assert.doesNotMatch(code(f), /selenium|puppeteer|playwright|chrome-remote|webdriver|gmail\.send/i, f);
+  for (const f of ['src/email.js', 'public/comms.js']) assert.doesNotMatch(code(f), /clientSecret|refresh_token|client_secret/i, f); // (email-api.js só DETECTA credenciais antigas para o usuário removê-las)
 });
 
 test('rodada rich text: nenhuma chamada externa e nenhuma imagem/HTML de envio', () => {

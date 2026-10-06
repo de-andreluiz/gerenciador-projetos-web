@@ -2,7 +2,6 @@
 // etapa atual do projeto (com histórico), planilhas de Correções e a biblioteca de Documentos e Modelos.
 const fs = require('fs');
 const path = require('path');
-const { spawn } = require('child_process');
 const { httpError, uid, str } = require('./util');
 const contacts = require('./contacts');
 const { parseSheetUrl } = require('./sheets');
@@ -26,7 +25,7 @@ function isHttpUrl(u) {
   try { const x = new URL(String(u).trim()); return x.protocol === 'http:' || x.protocol === 'https:'; } catch { return false; }
 }
 
-function mount(app, { store, audit, getProject, getIn, publicProject, SYS }) {
+function mount(app, { store, audit, getProject, getIn, publicProject }) {
   const data = () => store.data;
   const nameKey = (s) => s.trim().toLowerCase();
 
@@ -368,18 +367,14 @@ function mount(app, { store, audit, getProject, getIn, publicProject, SYS }) {
     if (!fs.existsSync(d.source.path) || !fs.statSync(d.source.path).isFile()) throw httpError(404, 'O arquivo não foi encontrado no caminho cadastrado. Edite o documento e selecione-o de novo.');
     return d.source.path;
   };
-  // Abre com o programa padrão do Windows. Só arquivos cadastrados, com extensão de documento, existentes.
+  // Abrir arquivo/pasta no navegador de arquivos do SO: não disponível no modo Web. Só valida (cadastrado, extensão, existência).
   app.post('/api/documents/:id/open', (req, res) => {
-    const file = docFile(req.params.id);
-    if (!SYS) throw httpError(400, 'Navegador de arquivos do SO indisponível no modo Web.');
-    spawn(path.join(SYS, 'explorer.exe'), [file], { detached: true, stdio: 'ignore' }).unref();
-    res.json({ ok: true });
+    docFile(req.params.id);
+    throw httpError(400, 'Navegador de arquivos do SO indisponível no modo Web.');
   });
   app.post('/api/documents/:id/open-folder', (req, res) => {
-    const file = docFile(req.params.id);
-    if (!SYS) throw httpError(400, 'Navegador de arquivos do SO indisponível no modo Web.');
-    spawn(path.join(SYS, 'explorer.exe'), [path.dirname(file)], { detached: true, stdio: 'ignore' }).unref();
-    res.json({ ok: true });
+    docFile(req.params.id);
+    throw httpError(400, 'Navegador de arquivos do SO indisponível no modo Web.');
   });
 
   return { extras, publicCoordinator };

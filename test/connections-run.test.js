@@ -30,7 +30,7 @@ test('conexões cadastradas: CRUD, senha nunca exposta, bases referenciam e impo
     assert.ok(!JSON.stringify((await api('GET', '/api/state')).json).includes('segredo-123'));
     const raw = fs.readFileSync(path.join(process.env.GP_DATA_DIR, 'projects.json'), 'utf8');
     assert.ok(!raw.includes('segredo-123'), 'senha nunca em texto puro');
-    assert.ok(/"passwordEnc": "[A-Za-z0-9+/=]{40,}"/.test(raw), 'guardada com DPAPI');
+    assert.ok(/"passwordEnc": "[A-Za-z0-9+/=]{40,}"/.test(raw), 'guardada cifrada (AES-256-GCM)');
     assert.equal((await api('POST', '/api/connections', { name: 'produção rm', server: 'Y' })).status, 409);
     assert.equal((await api('GET', '/api/state')).json.settings.defaultConnectionId, prod.json.id, 'primeira conexão vira a padrão');
     // editar sem senha mantém a senha
@@ -52,7 +52,7 @@ test('conexões cadastradas: CRUD, senha nunca exposta, bases referenciam e impo
     assert.deepEqual(stored, { connectionId: prod.json.id, database: 'CLIENTE_A' });
     assert.equal((await api('DELETE', `/api/connections/${prod.json.id}`)).status, 409, 'em uso por uma base');
 
-    // importar: 3 bases com o mesmo servidor/login/senha (blobs DPAPI diferentes) viram 1 conexão; senha diferente fica em outro grupo
+    // importar: 3 bases com o mesmo servidor/login/senha (blobs cifrados diferentes) viram 1 conexão; senha diferente fica em outro grupo
     const mk = (name, pwd, dbn) => api('POST', `/api/projects/${p.id}/bases`, { name, prod: { server: '192.0.2.91', database: dbn, auth: 'sql', user: 'sa', password: pwd } });
     await mk('X1', 'mesma', 'DB1'); await mk('X2', 'mesma', 'DB2'); await mk('X3', 'mesma', 'DB3'); await mk('X4', 'outra', 'DB4');
     const groups = (await api('GET', '/api/connections-import')).json;

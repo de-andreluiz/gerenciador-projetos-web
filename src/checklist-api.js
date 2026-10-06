@@ -1,9 +1,5 @@
 // Rotas dos checklists: modelo reutilizável (Configurações), execução por projeto/passo do ciclo e evidências.
 // Regras em src/checklist.js; validação e armazenamento de anexos em src/evidence.js. Auditoria no audit.log existente.
-const os = require('os');
-const fs = require('fs');
-const path = require('path');
-const { spawn } = require('child_process');
 const { httpError, uid, str } = require('./util');
 const C = require('./checklist');
 const { applyGreeting } = require('./greeting');
@@ -15,10 +11,9 @@ const EM = require('./email');
 const { readBody } = EH;
 const whoAmI = EH.whoAmI;
 
-function mount(app, { store, audit, getProject, getIn, dataDir, SYS, publicProject }) {
+function mount(app, { store, audit, getProject, getIn, dataDir, publicProject }) {
   const data = () => store.data;
-  const files = () => store.files('evidence'); // local (pasta) ou nuvem (Storage cifrado), conforme o backend atual
-  const explorer = SYS ? path.join(SYS, 'explorer.exe') : null;
+  const files = () => store.files('evidence');
   const log = (action, p, extra = {}) => audit.log({ action, project: p?.name, by: whoAmI(), ...extra });
 
   // ---------- Configuração de evidências (tamanho máximo e extensões por tipo) ----------
@@ -328,11 +323,6 @@ function mount(app, { store, audit, getProject, getIn, dataDir, SYS, publicProje
   app.get('/api/projects/:id/evidences/:eid/file', async (req, res) => {
     const { ev } = findEvidence(getProject(req.params.id), req.params.eid);
     await EH.sendEvidence(res, files(), ev, { inline: req.query.inline === '1' });
-  });
-  app.post('/api/projects/:id/evidences/:eid/open', async (req, res) => {
-    const { ev } = findEvidence(getProject(req.params.id), req.params.eid);
-    await EH.openEvidence(explorer, files(), ev, { folder: !!req.body.folder });
-    res.json({ ok: true });
   });
   // Remover: o arquivo vai para <data>\evidencias\.removidas (recuperável). O item volta a "aguardando evidência" se ela era exigida.
   app.delete('/api/projects/:id/evidences/:eid', async (req, res) => {

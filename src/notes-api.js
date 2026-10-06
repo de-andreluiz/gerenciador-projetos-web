@@ -2,19 +2,15 @@
 //
 // As referências são só ISSO — o caminho/URL guardado no cadastro (como em Documentos e Modelos). O app não copia, move, altera nem
 // apaga o arquivo ou a pasta; remover uma observação remove apenas o registro. Arquivo: caminho absoluto + extensão de documento
-// (DOC_EXT; nunca programa/script). Abrir = programa padrão do Windows (arquivo) ou Explorer (pasta); link abre no navegador.
+// (DOC_EXT; nunca programa/script). Link abre no navegador; abrir arquivo/pasta no SO não está disponível no modo Web.
 const fs = require('fs');
 const path = require('path');
-const { spawn } = require('child_process');
 const { httpError, uid, str } = require('./util');
 const { isSafeDocFile, isHttpUrl } = require('./config-api');
 
 const MAX_NOTES = 50;
 const MAX_REFS = 20;
 const KINDS = new Set(['link', 'file', 'folder']);
-
-let spawner = spawn; // ponto único de criação de processo (os testes trocam por um simulado)
-const setSpawn = (fn) => { spawner = fn || spawn; };
 
 const baseName = (p) => path.basename(p) || p;
 const isRoot = (p) => path.parse(p).root.toLowerCase() === p.toLowerCase();
@@ -52,7 +48,7 @@ function cleanNote(b, existing) {
 
 const exists = (r) => { try { const s = fs.statSync(r.path); return r.kind === 'folder' ? s.isDirectory() : s.isFile(); } catch { return false; } };
 
-function mount(app, { store, audit, getProject, publicProject, SYS }) {
+function mount(app, { store, audit, getProject, publicProject }) {
   const notesOf = (p) => (p.notes ||= []);
   const noteOf = (p, nid) => notesOf(p).find((n) => n.id === nid) || (() => { throw httpError(404, 'Observação não encontrada.'); })();
   const refOf = (n, rid) => n.refs.find((r) => r.id === rid) || (() => { throw httpError(404, 'Anexo não encontrado.'); })();
@@ -101,21 +97,14 @@ function mount(app, { store, audit, getProject, publicProject, SYS }) {
     if (!exists(r)) throw httpError(404, r.kind === 'folder' ? 'A pasta não foi encontrada no caminho cadastrado. Edite a observação e selecione-a de novo.' : 'O arquivo não foi encontrado no caminho cadastrado. Edite a observação e selecione-o de novo.');
     return r.kind === 'file' && folderOfFile ? path.dirname(r.path) : r.path;
   };
-  const explorer = () => (SYS ? path.join(SYS, 'explorer.exe') : null);
   app.post('/api/projects/:id/notes/:nid/refs/:rid/open', (req, res) => {
-    const t = target(req, false);
-    const ex = explorer();
-    if (!ex) throw httpError(400, 'Navegador de arquivos do SO indisponível no modo Web.');
-    spawner(ex, [t], { detached: true, stdio: 'ignore' }).unref();
-    res.json({ ok: true });
+    target(req, false); // valida (link/tipo/existência) antes de recusar: o navegador de arquivos do SO não existe no modo Web
+    throw httpError(400, 'Navegador de arquivos do SO indisponível no modo Web.');
   });
   app.post('/api/projects/:id/notes/:nid/refs/:rid/open-folder', (req, res) => {
-    const t = target(req, true);
-    const ex = explorer();
-    if (!ex) throw httpError(400, 'Navegador de arquivos do SO indisponível no modo Web.');
-    spawner(ex, [t], { detached: true, stdio: 'ignore' }).unref();
-    res.json({ ok: true });
+    target(req, true);
+    throw httpError(400, 'Navegador de arquivos do SO indisponível no modo Web.');
   });
 }
 
-module.exports = { mount, setSpawn };
+module.exports = { mount };

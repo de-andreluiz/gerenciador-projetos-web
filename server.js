@@ -224,22 +224,20 @@ async function connPassword(conn) {
   }
 }
 
-// Modo Web / Linux: SYS (caminho do System32 do Windows) é null. Os módulos tratam SYS=null graciosamente.
-const SYS = null;
 
 // Conexões cadastradas (reutilizadas pelas bases e pela execução de scripts): mesmo formato, mesma senha, mesmo teste.
 const connectionsMod = require('./src/connections-api').mount(app, { store, audit, db, buildConn: (b, ex, o) => buildConn({ ...b, connectionId: undefined }, ex, o), publicConn, connPassword });
 // Coordenadores, estágios, ciclo, etapa do projeto, correções e documentos (src/config-api.js).
-const cfg = configApi.mount(app, { store, audit, getProject, getIn, publicProject, SYS });
+const cfg = configApi.mount(app, { store, audit, getProject, getIn, publicProject });
 // Scripts SQL do usuário, executados depois da importação (src/scripts-api.js; arquivos em <data>\scripts).
 const scriptsApi = require('./src/scripts-api');
-const scriptsMod = scriptsApi.mount(app, { store, dataDir: DATA_DIR, SYS });
+const scriptsMod = scriptsApi.mount(app, { store, dataDir: DATA_DIR });
 // Checklist por estágio: modelo, execução por projeto e evidências (src/checklist-api.js; arquivos em <data>\evidencias).
-require('./src/checklist-api').mount(app, { store, audit, getProject, getIn, dataDir: DATA_DIR, SYS, publicProject });
+require('./src/checklist-api').mount(app, { store, audit, getProject, getIn, dataDir: DATA_DIR, publicProject });
 // Executar scripts de apoio pelo checklist, com as mesmas travas dos scripts pós-importação (src/script-run.js).
 require('./src/script-run').mount(app, { store, audit, db, getProject, dataDir: DATA_DIR, resolveConn, connPassword, publicProject });
 // Controle de horas: jornada, cronômetros, apontamentos e exportação mensal (src/hours-api.js).
-require('./src/hours-api').mount(app, { store, audit, dataDir: DATA_DIR, SYS });
+require('./src/hours-api').mount(app, { store, audit, dataDir: DATA_DIR });
 const cleanCoordinatorId = (id) => {
   if (!id) return null;
   if (!store.data.coordinators.some((c) => c.id === id)) throw httpError(400, 'Coordenador inexistente.');
@@ -742,9 +740,8 @@ app.post('/api/import/plans/:id/execute', async (req, res) => {
 });
 
 // Workspace: pasta raiz com vários projetos — arquivos, cópia entre projetos e Git por projeto (src/workspace-api.js).
-// SYS removido: sem PowerShell/Explorer no modo web. Os módulos que usavam SYS para abrir pastas recebem null.
-require('./src/workspace-api').mount(app, { store, audit, SYS: null });
-require('./src/notes-api').mount(app, { store, audit, getProject, publicProject, SYS: null }); // observações do projeto
+require('./src/workspace-api').mount(app, { store, audit });
+require('./src/notes-api').mount(app, { store, audit, getProject, publicProject }); // observações do projeto
 require('./src/rm-env-api').mount(app, { store, audit, getProject, publicProject }); // ambientes RM
 require('./src/email-api').mount(app, { store, audit, getProject, getIn, publicProject, dataDir: DATA_DIR }); // e-mails (não envia)
 

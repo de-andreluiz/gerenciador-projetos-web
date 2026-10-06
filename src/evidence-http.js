@@ -1,11 +1,10 @@
 // Parte HTTP do sistema de evidências, compartilhada por quem anexa arquivos (checklist e observações do controle de horas):
-// receber o upload, validar (src/evidence.js), gravar na pasta de evidências, entregar o arquivo com segurança, abrir no Windows.
+// receber o upload, validar (src/evidence.js), gravar na pasta de evidências, entregar o arquivo com segurança.
 // Cada módulo só decide ONDE a evidência mora (qual registro guarda a lista e em qual subpasta) e quais limites vale.
 // O registro de uma evidência é sempre o mesmo: { id, name, file, mime, kind, size, description, at, by }.
 // `file` é uma referência da ÁREA de arquivos (src/files): caminho relativo na pasta local, ou "sb:<bucket>/<objeto>" na nuvem.
 // Tudo aqui é assíncrono e não sabe onde o arquivo mora (local ou Supabase Storage cifrado).
 const path = require('path');
-const { spawn } = require('child_process');
 const { httpError, uid } = require('./util');
 const E = require('./evidence');
 const { DataError, toHttp } = require('./persistence/errors');
@@ -77,15 +76,7 @@ async function sendEvidence(res, files, ev, { inline = false } = {}) {
   res.send(buf);
 }
 
-// "Abrir": programa padrão do Windows, só para tipos permitidos e só para arquivos que o app mesmo gravou. Nada é executado.
-// Na nuvem, abre uma cópia decifrada temporária (apagada no logout/próxima carga/12 h).
-async function openEvidence(explorer, files, ev, { folder = false } = {}) {
-  checkAvailable(files, ev);
-  const abs = await asHttp(files.openPath(ev.file, ev.name));
-  spawn(explorer, folder ? [`/select,${abs}`] : [abs], { detached: true, stdio: 'ignore' }).unref();
-}
-
 // O que a tela recebe de cada evidência (nunca o caminho do disco).
 const evidencePublic = (files, v) => ({ id: v.id, name: v.name, size: v.size, kind: v.kind, mime: v.mime, description: v.description, at: v.at, by: v.by, exists: files.has(v.file) });
 
-module.exports = { readBody, header, receiveUpload, evidenceBuffer, sendEvidence, openEvidence, evidencePublic, whoAmI, asHttp };
+module.exports = { readBody, header, receiveUpload, evidenceBuffer, sendEvidence, evidencePublic, whoAmI, asHttp };
