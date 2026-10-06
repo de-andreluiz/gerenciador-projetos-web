@@ -5,7 +5,10 @@
    Claro: fundo quase branco (cinza da marca), texto azul-marinho, destaque azul #0A46EA — o "Azul primário" que o
    próprio site institucional usa para botões/links sobre fundo branco (o ciano não tem contraste suficiente em fundo claro).
    Tipografia: Tiempos Text (corpo, a mesma usada no chat do Claude) e Copernicus (títulos, a mesma usada em boas-vindas/introdução
-   do Claude) — arquivos licenciados pelo usuário, em public/fonts/ (ver LICENSE.txt em cada subpasta). Gradiente só como fundo decorativo. */
+   do Claude) — arquivos licenciados pelo usuário, em public/fonts/ (ver LICENSE.txt em cada subpasta). São versões trial SEM
+   acentuação (nenhum á/ã/ç/õ etc.): por isso Source Serif 4 / Fraunces (Google Fonts, acentuação completa) entram como 2ª opção
+   na pilha de fontes — cobrem só as letras que a Tiempos/Copernicus não têm, letra por letra, sem precisar trocar a fonte toda.
+   Gradiente só como fundo decorativo. */
 
 @font-face { font-family: "Tiempos Text"; src: url("fonts/tiempos/TiemposText-Regular.otf") format("opentype"); font-weight: 400; font-style: normal; font-display: swap; }
 @font-face { font-family: "Tiempos Text"; src: url("fonts/tiempos/TiemposText-RegularItalic.otf") format("opentype"); font-weight: 400; font-style: italic; font-display: swap; }
@@ -69,8 +72,8 @@ body {
   transition: background-color .15s ease, color .15s ease;
 }
 :root {
-  --font: "Tiempos Text", Georgia, "Times New Roman", serif;
-  --font-display: "Copernicus", Georgia, "Times New Roman", serif;
+  --font: "Tiempos Text", "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-display: "Copernicus", "Fraunces", Georgia, "Times New Roman", serif;
   --mono: Consolas, "Cascadia Mono", monospace; --code-bg: #0B141D; --code-text: #D7E6F0;
 }
 body::before { content: ""; position: fixed; inset: 0 0 auto 0; height: 4px; z-index: 300; background: linear-gradient(90deg, var(--navy) 0%, var(--accent) 100%); }
