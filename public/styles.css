@@ -4,8 +4,27 @@
    Escuro (padrão): AMOLED — fundo preto puro, painéis em cinza quase preto, texto branco, destaque azul-ciano.
    Claro: fundo quase branco (cinza da marca), texto azul-marinho, destaque azul #0A46EA — o "Azul primário" que o
    próprio site institucional usa para botões/links sobre fundo branco (o ciano não tem contraste suficiente em fundo claro).
-   Tipografia: Source Serif 4 (corpo, no espírito da Tiempos usada no Claude) e Fraunces (títulos, no espírito da Copernicus) —
-   Tiempos/Copernicus são fontes proprietárias (Klim Type Foundry) e não podem ser embutidas sem licença. Gradiente só como fundo decorativo. */
+   Tipografia: Tiempos Text (corpo, a mesma usada no chat do Claude) e Copernicus (títulos, a mesma usada em boas-vindas/introdução
+   do Claude) — arquivos licenciados pelo usuário, em public/fonts/ (ver LICENSE.txt em cada subpasta). Gradiente só como fundo decorativo. */
+
+@font-face { font-family: "Tiempos Text"; src: url("fonts/tiempos/TiemposText-Regular.otf") format("opentype"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Tiempos Text"; src: url("fonts/tiempos/TiemposText-RegularItalic.otf") format("opentype"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Tiempos Text"; src: url("fonts/tiempos/TiemposText-Medium.otf") format("opentype"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Tiempos Text"; src: url("fonts/tiempos/TiemposText-MediumItalic.otf") format("opentype"); font-weight: 500; font-style: italic; font-display: swap; }
+@font-face { font-family: "Tiempos Text"; src: url("fonts/tiempos/TiemposText-Semibold.otf") format("opentype"); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Tiempos Text"; src: url("fonts/tiempos/TiemposText-SemiboldItalic.otf") format("opentype"); font-weight: 600; font-style: italic; font-display: swap; }
+@font-face { font-family: "Tiempos Text"; src: url("fonts/tiempos/TiemposText-Bold.otf") format("opentype"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Tiempos Text"; src: url("fonts/tiempos/TiemposText-BoldItalic.otf") format("opentype"); font-weight: 700; font-style: italic; font-display: swap; }
+
+@font-face { font-family: "Copernicus"; src: url("fonts/copernicus/Copernicus-Book.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Copernicus"; src: url("fonts/copernicus/Copernicus-BookItalic.ttf") format("truetype"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Copernicus"; src: url("fonts/copernicus/Copernicus-Medium.ttf") format("truetype"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Copernicus"; src: url("fonts/copernicus/Copernicus-MediumItalic.ttf") format("truetype"); font-weight: 500; font-style: italic; font-display: swap; }
+@font-face { font-family: "Copernicus"; src: url("fonts/copernicus/Copernicus-Semibold.ttf") format("truetype"); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Copernicus"; src: url("fonts/copernicus/Copernicus-SemiboldItalic.ttf") format("truetype"); font-weight: 600; font-style: italic; font-display: swap; }
+@font-face { font-family: "Copernicus"; src: url("fonts/copernicus/Copernicus-Bold.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Copernicus"; src: url("fonts/copernicus/Copernicus-BoldItalic.ttf") format("truetype"); font-weight: 700; font-style: italic; font-display: swap; }
+
 :root {
   --navy: #002233; --cyan: #00DBFF; --purple: #A44DFF; --green: #00FFD4; --lime: #D9FF65; --orange: #FF8900; --pink: #FF009E;
 
@@ -50,12 +69,12 @@ body {
   transition: background-color .15s ease, color .15s ease;
 }
 :root {
-  --font: "Source Serif 4", Georgia, "Times New Roman", serif;
-  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font: "Tiempos Text", Georgia, "Times New Roman", serif;
+  --font-display: "Copernicus", Georgia, "Times New Roman", serif;
   --mono: Consolas, "Cascadia Mono", monospace; --code-bg: #0B141D; --code-text: #D7E6F0;
 }
 body::before { content: ""; position: fixed; inset: 0 0 auto 0; height: 4px; z-index: 300; background: linear-gradient(90deg, var(--navy) 0%, var(--accent) 100%); }
-h1, h2, h3 { margin: 0; font-weight: 700; font-family: var(--font-display); }
+h1, h2, h3 { margin: 0; font-weight: 600; font-family: var(--font-display); }
 h1 { font-size: 21px; letter-spacing: .1px; overflow-wrap: anywhere; } h2 { font-size: 14px; } h3 { font-size: 13px; }
 a { color: var(--accent); }
 .muted { color: var(--muted); } .small { font-size: 12px; } .mono { font-family: var(--mono); font-size: 12.5px; word-break: break-all; }
@@ -65,7 +84,7 @@ a { color: var(--accent); }
 .sidebar { background: var(--s0); border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; transition: background-color .15s ease, border-color .15s ease; }
 .brand { padding: 18px 16px 14px; display: flex; align-items: center; gap: 12px; }
 .brand img { width: 36px; height: 36px; border-radius: 9px; flex: none; }
-.brand b { display: block; font-size: 13.5px; line-height: 1.25; font-family: var(--font-display); } .brand span { font-size: 11px; color: var(--muted); }
+.brand b { display: block; font-size: 13.5px; line-height: 1.25; font-family: var(--font-display); font-weight: 600; } .brand span { font-size: 11px; color: var(--muted); }
 #nav { flex: 1; overflow-x: hidden; overflow-y: auto; padding: 4px 8px; }
 .nav-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; border-left: 3px solid transparent; background: transparent; color: var(--text); padding: 8px 9px; border-radius: 8px; cursor: pointer; font: inherit; transition: background-color .1s ease; }
 .nav-item:hover { background: var(--s2); }
