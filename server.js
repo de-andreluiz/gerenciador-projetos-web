@@ -15,17 +15,15 @@ const DATA_DIR = process.env.GP_DATA_DIR || path.join(__dirname, 'data');
 const PLAN_TTL_MS = 20 * 60 * 1000;
 const UPLOAD_TMP  = path.join(DATA_DIR, '.upload-tmp');
 
-// ── Persistência: SQLite (padrão web) | local JSON | cloud (Supabase) ─────────
+// ── Persistência: SQLite (padrão web) | local JSON ────────────────────────────
 const { Store } = require('./src/store');
 const { Audit } = require('./src/audit');
 
 const STORAGE_BACKEND = process.env.GP_STORAGE_BACKEND || 'json';
 let store = new Store(DATA_DIR);
 let audit = new Audit(DATA_DIR);
-let CLOUD = false;
 let appCfg = require('./src/config').appConfig();
 let session = null;
-let launch = null;
 const { parseSheetUrl } = require('./src/sheets');
 const { parseDriveFolderUrl, uploadFile: driveUpload, listFiles: driveListFiles, getFolderMetadata } = require('./src/drive');
 const configApi = require('./src/config-api');
@@ -44,29 +42,20 @@ try { multer = require('multer'); } catch { /* multer opcional — endpoints de 
 // ── Fábrica de store conforme GP_STORAGE_BACKEND ──────────────────────────────
 async function initStore() {
   const appCfg = require('./src/config').appConfig();
-  const CLOUD  = appCfg.mode === 'cloud';
   const backend = process.env.GP_STORAGE_BACKEND || (require.main === module ? 'sqlite' : 'json');
 
   if (backend === 'sqlite') {
     const { createSqliteStore } = require('./src/sqlite-db');
     const s = await createSqliteStore(DATA_DIR);
     console.log(`[store] SQLite — ${path.join(DATA_DIR, 'app.db')}`);
-    return { store: s, audit: new Audit(DATA_DIR), CLOUD: false, appCfg, session: null };
-  }
-
-  if (backend === 'cloud' || CLOUD) {
-    const { Store } = require('./src/store');
-    const { localRoot } = require('./src/persistence/local-user-data');
-    const { SignedOutBackend } = require('./src/persistence/signed-out-backend');
-    const s = new Store(DATA_DIR, { backend: new SignedOutBackend() });
-    return { store: s, audit: new Audit(path.join(localRoot(), 'logs')), CLOUD: true, appCfg, session: null };
+    return { store: s, audit: new Audit(DATA_DIR), appCfg, session: null };
   }
 
   // Fallback: JSON local legado
   const { Store } = require('./src/store');
   const s = new Store(DATA_DIR);
   console.log(`[store] JSON local — ${path.join(DATA_DIR, 'projects.json')}`);
-  return { store: s, audit: new Audit(DATA_DIR), CLOUD: false, appCfg, session: null };
+  return { store: s, audit: new Audit(DATA_DIR), appCfg, session: null };
 }
 
 const app = express();
@@ -85,37 +74,14 @@ app.use((req, res, next) => {
 });
 app.use(express.json({ limit: '2mb' }));
 
-// ── Sessão e Launch Guard (montados antes das rotas estáticas e de API) ───────
+// ── Sessão (montada antes das rotas estáticas e de API) ───────────────────────
 const S = require('./src/auth/session');
 function initSession() {
   appCfg = require('./src/config').appConfig();
-  CLOUD  = appCfg.mode === 'cloud';
-  if (!CLOUD) {
-    session = new S.LocalSession({ cfg: appCfg });
-    launch  = null;
-  } else {
-    launch = S.launchGuard(process.env.GP_LAUNCH_TOKEN || undefined);
-    const { Store } = require('./src/store');
-    const { Audit } = require('./src/audit');
-    const { localRoot } = require('./src/persistence/local-user-data');
-    const { SignedOutBackend } = require('./src/persistence/signed-out-backend');
-    store = new Store(DATA_DIR, { backend: new SignedOutBackend() });
-    audit = new Audit(path.join(localRoot(), 'logs'));
-    fs.mkdirSync(path.join(localRoot(), 'logs'), { recursive: true });
-
-    const { GoTrueClient }   = require('./src/auth/gotrue');
-    const { SupabaseRest }   = require('./src/persistence/supabase-rest');
-    const conn = { url: appCfg.supabaseUrl, publishableKey: appCfg.publishableKey };
-    session = new S.CloudSession({
-      cfg: appCfg, store, audit, gotrue: new GoTrueClient(conn),
-      transportFactory: ({ getAccessToken }) => new SupabaseRest({ ...conn, getAccessToken }),
-      protect, unprotect,
-    });
-  }
+  session = new S.LocalSession({ cfg: appCfg });
 }
 initSession();
 
-app.use((req, res, next) => (launch ? launch.middleware(req, res, next) : next()));
 app.use((req, res, next) => (session ? session.middleware()(req, res, next) : next()));
 session.mount(app);
 
@@ -813,11 +779,10 @@ app.use((err, req, res, next) => {
 // ── Startup ───────────────────────────────────────────────────────────────────
 if (require.main === module) {
   (async () => {
-    // 1. Inicializa o store (SQLite, JSON ou Supabase) antes de qualquer request.
+    // 1. Inicializa o store (SQLite ou JSON) antes de qualquer request.
     const ctx = await initStore();
     store   = ctx.store;
     audit   = ctx.audit;
-    CLOUD   = ctx.CLOUD;
     appCfg  = ctx.appCfg;
     if (session) {
       session.store = store;
@@ -826,9 +791,8 @@ if (require.main === module) {
 
     // 2. Sobe o servidor.
     app.listen(PORT, '127.0.0.1', async () => {
-      if (CLOUD) await session.restore().catch(() => false);
-      const url = `http://localhost:${PORT}/${launch ? `?k=${launch.token}` : ''}`;
-      const mode = STORAGE_BACKEND === 'sqlite' ? 'SQLite' : CLOUD ? `nuvem (${appCfg.env})` : 'JSON local';
+      const url = `http://localhost:${PORT}/`;
+      const mode = STORAGE_BACKEND === 'sqlite' ? 'SQLite' : 'JSON local';
       console.log(`Gerenciador de Projetos [${mode}] — ${url}  (dados em ${DATA_DIR})`);
       // Abre o navegador (Linux: xdg-open; Windows: start)
       if (process.env.GP_OPEN_BROWSER === '1') {
@@ -839,4 +803,4 @@ if (require.main === module) {
   })().catch((err) => { console.error('Falha na inicialização:', err); process.exit(1); });
 }
 
-module.exports = { app, get store() { return store; }, get session() { return session; }, get launch() { return launch; } };
+module.exports = { app, get store() { return store; }, get session() { return session; } };

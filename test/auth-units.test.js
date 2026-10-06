@@ -1,60 +1,15 @@
-// Fase 4 — peças sem rede: cliente do Supabase Auth (fetch simulado), configuração (.env / modo nuvem), política de senha.
+// Peças sem rede: configuração (.env), política de senha.
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { GoTrueClient } = require('../src/auth/gotrue');
 const { loadDotEnv, appConfig } = require('../src/config');
 const { checkPassword } = require('../src/auth/session');
 
-const URL_ = 'https://abcdefghijklmnopqrst.supabase.co'; // scan-secrets: allow (URL fictícia de teste)
-const resp = (status, body) => ({ ok: status < 400, status, text: async () => (body === undefined ? '' : JSON.stringify(body)) });
-const okSession = { access_token: 'a1', refresh_token: 'r1', expires_in: 3600, user: { id: '11111111-2222-3333-4444-555555555555', email: 'x@exemplo.test' } };
-
-test('GoTrue: endpoints e cabeçalhos (publishable key; Bearer só onde precisa); sessão normalizada', async () => {
-  const calls = [];
-  const c = new GoTrueClient({ url: URL_, publishableKey: 'pk', fetchImpl: async (url, init) => { calls.push({ url, init }); return resp(200, url.includes('/user') || url.includes('/recover') || url.includes('/logout') ? {} : okSession); } });
-  const s = await c.signIn('x@exemplo.test', 'Senha-Forte-123');
-  assert.equal(s.accessToken, 'a1'); assert.equal(s.refreshToken, 'r1'); assert.equal(s.userId, okSession.user.id); assert.ok(s.expiresAt > Date.now());
-  await c.refresh('r1'); await c.verifyOtp('invite', 'x@exemplo.test', '123456'); await c.setPassword('a1', 'Nova-Senha-123!'); await c.recover('x@exemplo.test'); await c.signOut('a1');
-  assert.deepEqual(calls.map((x) => `${x.init.method} ${x.url.replace(URL_, '')}`), [
-    'POST /auth/v1/token?grant_type=password', 'POST /auth/v1/token?grant_type=refresh_token', 'POST /auth/v1/verify', 'PUT /auth/v1/user', 'POST /auth/v1/recover', 'POST /auth/v1/logout?scope=local']);
-  assert.ok(calls.every((x) => x.init.headers.apikey === 'pk'));
-  assert.equal(calls[0].init.headers.Authorization, undefined, 'login não manda token');
-  assert.equal(calls[3].init.headers.Authorization, 'Bearer a1');
-  assert.deepEqual(JSON.parse(calls[2].init.body), { type: 'invite', email: 'x@exemplo.test', token: '123456' });
-});
-
-test('GoTrue: erros viram códigos com mensagens que não revelam se a conta existe', async () => {
-  const cases = [
-    [resp(400, { error_code: 'invalid_credentials', msg: 'Invalid login credentials' }), 'INVALID_CREDENTIALS', /E-mail ou senha incorretos/],
-    [resp(400, { error: 'invalid_grant', error_description: 'Invalid login credentials' }), 'INVALID_CREDENTIALS', /incorretos/],
-    [resp(400, { error_code: 'email_not_confirmed' }), 'NOT_CONFIRMED', /Primeiro acesso/],
-    [resp(400, { error_code: 'user_banned', msg: 'User is banned' }), 'SUSPENDED', /suspenso/],
-    [resp(403, { error_code: 'otp_expired', msg: 'Token has expired or is invalid' }), 'INVALID_CODE', /Código inválido/],
-    [resp(422, { error_code: 'weak_password' }), 'WEAK_PASSWORD', /12 caracteres/],
-    [resp(429, { error_code: 'over_request_rate_limit' }), 'RATE_LIMIT', /tentativas/],
-    [resp(400, { error_code: 'refresh_token_not_found' }), 'SESSION_EXPIRED', /expirou/],
-    [resp(502, {}), 'OFFLINE', /conexão/],
-  ];
-  for (const [r, code, msg] of cases) {
-    const c = new GoTrueClient({ url: URL_, publishableKey: 'pk', fetchImpl: async () => r });
-    await assert.rejects(c.signIn('x@exemplo.test', 'y'), (e) => { assert.equal(e.code, code); assert.match(e.message, msg); return true; });
-  }
-  const offline = new GoTrueClient({ url: URL_, publishableKey: 'pk', fetchImpl: async () => { throw new Error('ENOTFOUND'); } });
-  await assert.rejects(offline.signIn('x@exemplo.test', 'y'), { code: 'OFFLINE' });
-});
-
-test('config: modo local é o padrão; modo nuvem exige URL https e publishable key; secret/service role é recusada', () => {
+test('config: modo é sempre local', () => {
   assert.equal(appConfig({}).mode, 'local');
-  assert.throws(() => appConfig({ GP_MODE: 'cloud' }), /GP_SUPABASE_URL/);
-  assert.throws(() => appConfig({ GP_MODE: 'cloud', GP_SUPABASE_URL: 'http://inseguro.test', GP_SUPABASE_PUBLISHABLE_KEY: 'x' }), /GP_SUPABASE_URL/);
-  assert.throws(() => appConfig({ GP_MODE: 'cloud', GP_SUPABASE_URL: URL_ }), /PUBLISHABLE_KEY/);
-  assert.throws(() => appConfig({ GP_MODE: 'cloud', GP_SUPABASE_URL: URL_, GP_SUPABASE_PUBLISHABLE_KEY: ['sb', 'secret', 'abc'].join('_') }), /SECRET/);
-  assert.equal(appConfig({ GP_MODE: 'cloud', GP_SUPABASE_URL: URL_, GP_SUPABASE_PUBLISHABLE_KEY: 'pk' }).mode, 'cloud');
-  assert.equal(appConfig({ GP_MODE: 'cloud', GP_SUPABASE_URL: 'http://127.0.0.1:54321', GP_SUPABASE_PUBLISHABLE_KEY: 'pk' }).mode, 'cloud', 'HTTP só no Supabase local (loopback)');
-  assert.throws(() => appConfig({ GP_MODE: 'cloud', GP_SUPABASE_URL: 'http://10.0.0.5:54321', GP_SUPABASE_PUBLISHABLE_KEY: 'pk' }), /GP_SUPABASE_URL/);
+  assert.equal(appConfig({ GP_ENV: 'prod' }).env, 'prod');
 });
 
 test('.env: só chaves GP_* e PORT, sem sobrescrever o ambiente; comentários ignorados', () => {
