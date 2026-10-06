@@ -1,0 +1,3 @@
+#!/bin/sh
+# Barra commits com segredos ou dados reais. Ativado por: git config core.hooksPath .githooks
+exec node scripts/scan-secrets.js --staged

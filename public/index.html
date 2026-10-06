@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#002233">
+  <title>Gerenciador de Projetos</title>
+  <link rel="icon" type="image/png" href="icone.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <!-- trilho da barra recolhida (qualquer tela; Ctrl+Alt+B) e divisória de largura (só no Workspace) -->
+      <div class="nav-rail"><img src="icone.png" alt=""><button type="button" id="navRailOpen" class="rail-open" title="Mostrar a barra lateral (Ctrl+Alt+B)" aria-label="Mostrar a barra lateral">»</button><div id="railNav" class="rail-nav"></div></div>
+      <div class="nav-vsplit" id="navSplit" title="Arraste para redimensionar"></div>
+      <div class="brand"><img src="icone.png" alt=""><div class="grow"><b>Gerenciador de Projetos</b><span>Migração · DE-PARA</span></div>
+        <button type="button" id="reloadPage" class="brand-collapse brand-reload" title="Atualizar a página (recarrega os dados e a saudação)" aria-label="Atualizar a página"></button>
+        <button type="button" id="navCollapse" class="brand-collapse" title="Recolher a barra lateral (Ctrl+Alt+B)" aria-label="Recolher a barra lateral">«</button></div>
+      <nav id="nav"></nav>
+      <div id="timerDock"></div>
+      <div class="sidebar-foot">
+        <div id="userBox"></div>
+        <div id="navfoot" class="navfoot"></div>
+        <div class="foot-row"><div id="themeToggle"></div><button class="btn primary grow" id="newProject">+ Novo projeto</button></div>
+      </div>
+    </aside>
+    <main id="main"></main>
+  </div>
+  <div id="toasts" aria-live="polite"></div>
+  <script src="app.js"></script>
+  <script src="auth.js"></script>
+  <script src="cycle.js"></script>
+  <script src="config.js"></script>
+  <script src="comms.js"></script>
+  <script src="rm-env.js"></script>
+  <script src="notes.js"></script>
+  <script src="docs.js"></script>
+  <script src="scripts.js"></script>
+  <script src="connections.js"></script>
+  <script src="evidence-ui.js"></script>
+  <script src="checklist.js"></script>
+  <script src="hours-notes.js"></script>
+  <script src="hours.js"></script>
+  <script src="import.js"></script>
+  <script src="import-batch.js"></script>
+  <script src="diffview.js"></script>
+  <script src="workspace.js"></script>
+  <script src="workspace-git.js"></script>
+  <script src="workspace-history.js"></script>
+</body>
+</html>

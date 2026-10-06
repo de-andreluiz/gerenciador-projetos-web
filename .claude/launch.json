@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "gp-preview-local",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/preview-server.js"],
+      "port": 4460
+    },
+    {
+      "name": "gp-preview-cloud",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/preview-server.js", "cloud"],
+      "port": 4464
+    }
+  ]
+}
