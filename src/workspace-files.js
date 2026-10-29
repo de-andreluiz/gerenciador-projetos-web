@@ -45,7 +45,7 @@ function isAbsPath(p) {
 function checkRoot(p) {
   const v = String(p ?? '').trim();
   if (!v) return '';
-  if (!isAbsPath(v)) throw httpError(400, 'Informe um caminho completo (ex.: C:\\Projetos).');
+  if (!isAbsPath(v)) throw httpError(400, 'Informe um caminho completo (ex.: /home/usuario/Projetos ou C:\\Projetos).');
   const abs = path.resolve(v);
   if (path.parse(abs).root.toLowerCase() === abs.toLowerCase() || /^\\\\[^\\]+\\[^\\]+\\?$/.test(abs) || /^[a-zA-Z]:[\\/]?$/.test(v)) {
     throw httpError(400, 'Escolha uma pasta, não a raiz de um disco.');

@@ -4,7 +4,7 @@
 // dos timestamps + a diferença de relógio com o servidor. Recarregar a página ou trocar de módulo nunca perde a atividade.
 
 const HR = { st: null, offset: 0, viewDate: null, sig: '', pageBusy: false, day: null, hist: null, month: null, monthSel: null, proj: new Map(), recoveryShown: new Set(),
-  filters: { from: '', to: '', projectId: '', status: '', notes: '' } };
+  filters: { from: '', to: '', projectId: '', status: '', notes: '' }, filtersOpen: false, moreOpen: false };
 const INTERNAL_ID = 'internal';
 const INTERNAL_NAME = 'Interno / Administrativo';
 const WEEKDAY = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
@@ -93,10 +93,11 @@ window.addEventListener('DOMContentLoaded', () => { setTimeout(hoursRefresh, 50)
 const hoursChanged = async () => { HR.proj.clear(); await hoursRefresh({ skipPage: true }); if (route().name === 'hours') await hoursPageLoad(); };
 
 // ---------- Blocos visuais ----------
-function progressBar(confirmed, target) {
+function progressBar(confirmed, target, { big = false } = {}) {
   const pct = target > 0 ? Math.min(100, Math.round((confirmed / target) * 100)) : 0;
   const cls = target === 0 ? 'none' : confirmed >= target ? 'ok' : confirmed / target >= 0.7 ? 'warn' : 'bad';
-  return h('div', { class: `hr-bar ${cls}`, role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': pct }, h('div', { class: 'hr-bar-fill', style: `width:${pct}%` }));
+  return h('div', { class: `hr-bar ${cls}${big ? ' big' : ''}`, role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': pct },
+    h('div', { class: 'hr-bar-fill', style: `width:${pct}%` }), big && target > 0 ? h('span', { class: 'hr-bar-pct' }, `${pct}%`) : null);
 }
 // 08:30 / 08:30 ✓   |   07:30 / 08:30 ⚠ Falta 01:00   |   09:15 / 08:30 ↑ +00:45
 function statusChip(d) {
@@ -109,11 +110,10 @@ function statusChip(d) {
 const stat = (label, value, extra) => h('div', { class: 'hr-stat' }, h('span', { class: 'lbl muted' }, label), h('strong', { class: 'hr-num' }, value), extra || null);
 
 function dayFigures(d, { live = false } = {}) {
-  const pctTxt = d.pct === null ? '—' : `${Math.round(d.pct)}%`;
   const inprog = live ? inProgressMin(d.date) : 0;
   return h('div', { class: 'stack' },
-    h('div', { class: 'hr-stats' }, stat('Meta', hm(d.target)), stat('Apontado', hm(d.confirmed)), stat(d.over ? 'Excedente' : 'Restante', d.over ? `+${hm(d.over)}` : hm(d.remaining)), stat('Atingimento', pctTxt)),
-    progressBar(d.confirmed, d.target),
+    h('div', { class: 'hr-stats' }, stat('Meta', hm(d.target)), stat('Apontado', hm(d.confirmed)), stat(d.over ? 'Excedente' : 'Restante', d.over ? `+${hm(d.over)}` : hm(d.remaining))),
+    progressBar(d.confirmed, d.target, { big: true }),
     d.target > 0 && d.confirmed >= d.target ? h('div', { class: 'hr-ok' }, 'Meta atingida', d.over ? ` · Excedente: ${hm(d.over)}` : '') : null,
     live && (HR.st.timers.some((t) => t.date === d.date)) ? h('div', { class: 'hr-inprog small' }, h('span', null, 'Confirmado: ', h('strong', null, hm(d.confirmed))), h('span', null, 'Em andamento: ', h('strong', { 'data-live': 'inprog' }, hm(inprog))),
       h('span', null, 'Projeção: ', h('strong', { 'data-live': 'proj' }, hm(d.confirmed + inprog))), h('span', { class: 'muted' }, '(o que está em andamento ainda não conta na meta)')) : null);
@@ -474,10 +474,12 @@ function dayPanel(day) {
   return card([isToday ? 'HOJE — ' : '', fmtDate(day.date), h('span', { class: 'muted small' }, `  ${weekdayOf(day.date)}`, day.override || day.reason ? ` · ${day.reason || 'meta excepcional'}` : '')],
     h('div', { class: 'inline' }, h('button', { class: 'btn sm', title: 'Dia anterior', onclick: () => go(addDaysStr(day.date, -1)) }, '◀'), dateInput,
       h('button', { class: 'btn sm', disabled: isToday, title: 'Dia seguinte', onclick: () => go(addDaysStr(day.date, 1)) }, '▶'), h('button', { class: 'btn sm', disabled: isToday, onclick: () => go(today) }, 'Hoje'),
-      h('button', { class: 'btn sm primary', onclick: () => hoursEntryDialog(null, { date: day.date }) }, '+ Apontamento manual')),
+      h('button', { class: 'btn sm', onclick: () => hoursEntryDialog(null, { date: day.date }) }, '+ Apontamento manual')),
     dayFigures(day, { live: isToday }), statusChip(day),
     day.entries.length ? h('div', { class: 'hr-list' }, day.entries.map((en) => entryRow(en)))
-      : h('div', { class: 'empty' }, day.target > 0 ? 'Nenhum apontamento neste dia.' : 'Sem meta e sem apontamentos neste dia.'),
+      : h('div', { class: 'empty stack', style: 'align-items:center;gap:8px' }, h('span', null, day.target > 0 ? 'Nenhum apontamento neste dia.' : 'Sem meta e sem apontamentos neste dia.'),
+        h('div', { class: 'inline' }, isToday ? h('button', { class: 'btn sm primary', onclick: () => startWorkDialog() }, 'Iniciar trabalho') : null,
+          h('button', { class: 'btn sm', onclick: () => hoursEntryDialog(null, { date: day.date }) }, '+ Apontamento manual'))),
     day.entries.length ? h('div', { class: 'hr-total' }, h('span', null, 'Total: ', h('strong', null, hm(day.confirmed))), day.target > 0 ? h('span', null, day.confirmed >= day.target ? (day.over ? `Meta atingida · Excedente: ${hm(day.over)}` : 'Meta atingida') : h('span', { class: 'hr-warn' }, `Faltam: ${hm(day.remaining)}`)) : null) : null,
     notesSection(day));
 }
@@ -494,6 +496,7 @@ function monthCard(mo) {
 
 function historyCard() {
   const f = HR.filters;
+  const active = !!(f.projectId || f.status || f.notes);
   const projSel = h('select', { onchange: (e) => { f.projectId = e.target.value; hoursPageLoad(); } }, h('option', { value: '' }, 'Todos'),
     projectChoices(true).map((c) => h('option', { value: c.id, selected: f.projectId === c.id }, c.name)));
   const statusSel = h('select', { onchange: (e) => { f.status = e.target.value; hoursPageLoad(); } }, h('option', { value: '' }, 'Todos'),
@@ -503,8 +506,9 @@ function historyCard() {
   const from = h('input', { type: 'date', value: f.from, onchange: (e) => { f.from = e.target.value; hoursPageLoad(); } });
   const to = h('input', { type: 'date', value: f.to, max: HR.st.today, onchange: (e) => { f.to = e.target.value; hoursPageLoad(); } });
   const days = HR.hist.days;
-  return card('Histórico de apontamentos', null,
-    h('div', { class: 'filters' }, field('De', from), field('Até', to), field('Projeto', projSel), field('Status do dia', statusSel), field('Observações', notesSel)),
+  const toggle = h('button', { class: 'btn sm ghost', onclick: () => { HR.filtersOpen = !HR.filtersOpen; hoursRedrawPage(); } }, HR.filtersOpen ? 'Ocultar filtros' : `Filtros${active ? ' ●' : ''}`);
+  return card(['Histórico de apontamentos', h('span', { class: 'muted small', style: 'font-weight:400' }, `  ${fmtDate(f.from)} – ${fmtDate(f.to)}`)], toggle,
+    HR.filtersOpen ? h('div', { class: 'filters' }, field('De', from), field('Até', to), field('Projeto', projSel), field('Status do dia', statusSel), field('Observações', notesSel)) : null,
     days.length ? days.map((d) => h('div', { class: 'hr-day' },
       h('div', { class: 'hr-day-head' }, h('strong', null, fmtDate(d.date)), h('span', { class: 'muted small' }, weekdayOf(d.date)), h('span', { class: `pill hr-st-${d.status}` }, STATUS_TXT[d.status]),
         statusChip(d), noteBadgeForDay(d), h('span', { class: 'grow' }),
@@ -597,6 +601,12 @@ function importPreviewDialog(pv) {
   });
 }
 
+// Reconstrói a página sem buscar nada de novo no servidor (ex.: abrir/fechar filtros e "Mais opções").
+function hoursRedrawPage() {
+  const slot = document.querySelector('[data-slot="hours-page"]');
+  if (slot) slot.replaceChildren(hoursPageBody());
+}
+
 function hoursPageBody() {
   const st = HR.st;
   return h('div', { class: 'page', style: 'max-width:none;padding:0' },
@@ -606,7 +616,10 @@ function hoursPageBody() {
     st.timers.length ? card(`Atividades (${st.timers.length})`, null, st.timers.map((t) => timerBlock(t))) : null,
     dayPanel(HR.day),
     st.pending.length ? card('Dias pendentes', null, pendingList(st.pending, { limit: 10, onOpen: (d) => { HR.viewDate = d.date; hoursPageLoad().then(() => document.querySelector('[data-slot="hours-page"]')?.scrollIntoView({ behavior: 'smooth' })); } })) : null,
-    monthCard(HR.month), historyCard(), exportCard(), backupCard());
+    monthCard(HR.month), historyCard(),
+    h('div', { class: 'hr-more' },
+      h('button', { class: 'btn sm ghost', onclick: () => { HR.moreOpen = !HR.moreOpen; hoursRedrawPage(); } }, HR.moreOpen ? 'Ocultar exportação e backup' : 'Exportar / levar horas para outra máquina…'),
+      HR.moreOpen ? h('div', { class: 'stack', style: 'gap:16px;margin-top:12px' }, exportCard(), backupCard()) : null));
 }
 
 // ---------- Configurações: jornada, metas por dia da semana, exceções e aviso ----------

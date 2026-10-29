@@ -892,11 +892,11 @@ function renderSearch() {
 
 // ---------- Configuração da pasta raiz ----------
 function workspaceSettings(first = false) {
-  const pf = pathField({ value: WM.info.root, kind: 'folder', title: 'Pasta raiz do Workspace (onde ficam os projetos)', placeholder: 'C:\\Projetos' });
+  const pf = pathField({ value: WM.info.root, kind: 'folder', title: 'Pasta raiz do Workspace (onde ficam os projetos)' });
   const sugg = WM.info.suggestions?.length ? h('div', { class: 'inline', style: 'flex-wrap:wrap;gap:6px' }, h('span', { class: 'small muted' }, 'Sugestões:'),
     WM.info.suggestions.map((s) => h('button', { class: 'btn sm ghost mono', onclick: () => { pf.input.value = s; } }, s))) : null;
   const md = openModal({ title: first ? 'Configurar o Workspace' : 'Pasta raiz do Workspace',
-    body: [h('div', { class: 'muted' }, 'Escolha a pasta que contém os seus projetos (ex.: C:\\Projetos). Cada subpasta com repositório Git (até 3 níveis) vira um projeto, com Git próprio; pastas comuns do primeiro nível também aparecem. Tudo acontece nos arquivos reais — nada é copiado para o app.'),
+    body: [h('div', { class: 'muted' }, 'Escolha a pasta que contém os seus projetos (ex.: /home/usuario/Projetos ou C:\\Projetos). Cada subpasta com repositório Git (até 3 níveis) vira um projeto, com Git próprio; pastas comuns do primeiro nível também aparecem. Tudo acontece nos arquivos reais — nada é copiado para o app.'),
       field('Pasta raiz', pf.el), sugg],
     footer: [h('button', { class: 'btn', onclick: () => md.close() }, first ? 'Depois' : 'Cancelar'),
       h('button', { class: 'btn primary', onclick: (e) => busy(e.target, async () => {

@@ -138,10 +138,14 @@ function confirmDialog({ title, message, okText = 'Confirmar', danger = false })
 const field = (label, input, hint) => h('div', { class: 'field' }, h('label', null, label), input, hint ? h('div', { class: 'hint' }, hint) : null);
 
 function pathField({ value = '', kind = 'folder', title, placeholder, filter }) {
-  const input = h('input', { type: 'text', value, placeholder: placeholder || (kind === 'folder' ? 'C:\\Projetos\\Cliente' : 'C:\\...\\arquivo.xlsx') });
+  const input = h('input', { type: 'text', value, placeholder: placeholder || (kind === 'folder' ? '/home/usuario/Projetos (ou C:\\Projetos)' : '/caminho/arquivo.xlsx (ou C:\\...\\arquivo.xlsx)') });
   const btn = h('button', { type: 'button', class: 'btn', onclick: async () => {
     btn.disabled = true;
-    try { const r = await api('POST', `/api/dialog/${kind}`, { title, start: input.value, filter }); if (r.path) input.value = r.path; } catch (e) { fail(e); } finally { btn.disabled = false; }
+    try {
+      const r = await api('POST', `/api/dialog/${kind}`, { title, start: input.value, filter });
+      if (r.path) input.value = r.path;
+      else if (r.webMode) { toast('Esta instalação roda no navegador: não dá para abrir o seletor nativo. Digite o caminho completo no campo ao lado.'); input.focus(); }
+    } catch (e) { fail(e); } finally { btn.disabled = false; }
   } }, 'Escolher…');
   return { el: h('div', { class: 'inline' }, input, btn), input, get: () => input.value.trim() };
 }
@@ -261,7 +265,12 @@ const route = () => {
 window.addEventListener('hashchange', render);
 
 const ORDER = { overdue: 0, soon: 1, ok: 2, none: 3, done: 4 };
-const sortedProjects = () => [...state.projects].sort((a, b) => ORDER[a.schedule.state] - ORDER[b.schedule.state] || a.name.localeCompare(b.name, 'pt-BR'));
+// Inativos (projetos encerrados ou que saíram da sua carteira): somem da navegação e da Visão Geral por padrão,
+// mas continuam no state.projects — nada do histórico (horas, checklist, etc.) é afetado.
+const activeProjects = () => state.projects.filter((p) => p.status !== 'inactive');
+const inactiveProjects = () => state.projects.filter((p) => p.status === 'inactive');
+const HOME_SHOW_INACTIVE = { on: false };
+const sortedProjects = () => [...activeProjects()].sort((a, b) => ORDER[a.schedule.state] - ORDER[b.schedule.state] || a.name.localeCompare(b.name, 'pt-BR'));
 
 function render() {
   const r = route();
@@ -372,18 +381,19 @@ const projectConcluded = (p) => !!(p.steps?.length && p.stepId === p.steps[p.ste
 
 // Indicadores do topo da Visão Geral. Os de horas usam o estado do Controle de Horas (carregado à parte; hoursRedraw atualiza).
 function homeKpis() {
-  const active = state.projects.filter((p) => !projectConcluded(p));
-  const pend = state.projects.reduce((n, p) => n + (p.pendencies?.requiredPending || 0), 0);
-  const pendProj = state.projects.filter((p) => p.pendencies?.requiredPending).length;
-  const overdue = state.projects.filter((p) => p.schedule.state === 'overdue').length;
-  const soon = state.projects.filter((p) => p.schedule.state === 'soon').length;
+  const all = activeProjects();
+  const active = all.filter((p) => !projectConcluded(p));
+  const pend = all.reduce((n, p) => n + (p.pendencies?.requiredPending || 0), 0);
+  const pendProj = all.filter((p) => p.pendencies?.requiredPending).length;
+  const overdue = all.filter((p) => p.schedule.state === 'overdue').length;
+  const soon = all.filter((p) => p.schedule.state === 'soon').length;
   const st = typeof HR !== 'undefined' ? HR.st : null;
   const t = st && typeof runningTimer === 'function' ? runningTimer() : null;
   const goAttention = () => document.querySelector('[data-sec="home-attention"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const kpi = (label, value, sub, tone, onclick, title) => h(onclick ? 'button' : 'div', { class: `kpi${tone ? ` ${tone}` : ''}`, type: onclick ? 'button' : null, title: title || null, onclick: onclick || null },
     h('span', { class: 'kpi-l' }, label), h('span', { class: 'kpi-v' }, value), sub ? h('span', { class: 'kpi-s' }, sub) : null);
   return [
-    kpi('Projetos ativos', String(active.length), `${plural(state.projects.length - active.length, 'concluído', 'concluídos')}`),
+    kpi('Projetos ativos', String(active.length), `${plural(all.length - active.length, 'concluído', 'concluídos')}`),
     kpi('Pendências obrigatórias', String(pend), pend ? `em ${plural(pendProj, 'projeto', 'projetos')}` : 'nenhuma até a etapa atual', pend ? 'warn' : 'ok', pend ? goAttention : null, 'Itens obrigatórios ainda não concluídos (inclui pendências herdadas)'),
     kpi('Prazos', overdue ? `${overdue} atrasado${overdue > 1 ? 's' : ''}` : soon ? `${soon} perto` : 'em dia', overdue && soon ? `${soon} perto do prazo` : 'marcos do cronograma', overdue ? 'bad' : soon ? 'warn' : '', overdue || soon ? goAttention : null),
     st ? kpi('Horas hoje', `${hm(st.day.confirmed)} / ${hm(st.day.target)}`, t ? `em andamento: ${t.projectName || t.activity || 'atividade'}` : st.pending.length ? `${plural(st.pending.length, 'dia pendente', 'dias pendentes')}` : 'nenhum dia pendente',
@@ -396,7 +406,8 @@ function homeKpis() {
 function renderHome(main) {
   const attention = [];
   const open = (p) => () => (location.hash = `#/project/${p.id}`);
-  for (const p of state.projects) {
+  const visible = activeProjects();
+  for (const p of visible) {
     for (const m of p.milestones) {
       if (m.done) continue;
       const days = Math.round((Date.parse(m.dueDate) - Date.parse(state.today)) / 86400000);
@@ -415,7 +426,7 @@ function renderHome(main) {
   }
   // Versão nova de ciclo: uma linha por ciclo (não uma por projeto), com revisão em lote.
   for (const c of state.cycles) {
-    const outdated = state.projects.filter((p) => p.cycleId === c.id && p.cycleUpdate?.available);
+    const outdated = visible.filter((p) => p.cycleId === c.id && p.cycleUpdate?.available);
     if (!outdated.length) continue;
     attention.push({ order: 2000, kind: 'Ciclo', tone: 'info', title: c.name, sub: `Nova versão (v${c.version}) disponível para ${plural(outdated.length, 'projeto', 'projetos')}: ${outdated.slice(0, 3).map((p) => p.name).join(', ')}${outdated.length > 3 ? '…' : ''}`,
       badge: null, action: ['Revisar', () => (outdated.length === 1 ? cycleUpdateDialog(outdated[0]) : cycleBulkDialog(c))] });
@@ -427,7 +438,7 @@ function renderHome(main) {
 
   // Projetos por etapa (na ordem dos ciclos; estágios repetidos contam uma vez só).
   const byStage = new Map();
-  for (const p of state.projects) { const st = stageOf(p); const k = st ? st.id : null; byStage.set(k, (byStage.get(k) || 0) + 1); }
+  for (const p of visible) { const st = stageOf(p); const k = st ? st.id : null; byStage.set(k, (byStage.get(k) || 0) + 1); }
   const stageOrder = [...new Set(state.cycles.flatMap((c) => c.steps.map((s) => s.stageId)))].filter((id) => byStage.has(id));
 
   const projectRow = (p) => {
@@ -449,11 +460,15 @@ function renderHome(main) {
       a.badge, h('button', { class: 'btn sm', onclick: a.action[1] }, a.action[0]))),
     attention.length > 12 ? h('div', { class: 'small muted' }, `… e mais ${attention.length - 12}.`) : null)
       : h('div', { class: 'empty' }, '✓ Nada pedindo atenção: nenhum prazo perto de estourar, nenhuma etapa travada por checklist e nenhum ciclo com versão nova.'));
-  const projectsCard = card(['Projetos', h('span', { class: 'muted small', style: 'font-weight:400' }, `  ${state.projects.length}`)], h('button', { class: 'btn sm', onclick: () => projectForm() }, '+ Novo projeto'),
+  const inactive = inactiveProjects();
+  const projectsCard = card(['Projetos', h('span', { class: 'muted small', style: 'font-weight:400' }, `  ${visible.length}`)], h('button', { class: 'btn sm', onclick: () => projectForm() }, '+ Novo projeto'),
     stageOrder.length || byStage.has(null) ? h('div', { class: 'chips home-stages' },
       stageOrder.map((id) => h('span', { class: 'chip', title: 'Projetos nesta etapa' }, stageTag(stageById(id)), h('strong', null, byStage.get(id)))),
       byStage.has(null) ? h('span', { class: 'chip' }, noStageTag(), h('strong', null, byStage.get(null))) : null) : null,
     h('div', { class: 'home-projs' }, sortedProjects().map(projectRow)),
+    inactive.length ? h('button', { class: 'btn sm ghost', style: 'margin-top:8px', onclick: (e) => { HOME_SHOW_INACTIVE.on = !HOME_SHOW_INACTIVE.on; render(); } },
+      HOME_SHOW_INACTIVE.on ? 'Ocultar inativos' : `Mostrar ${plural(inactive.length, 'projeto inativo', 'projetos inativos')}`) : null,
+    HOME_SHOW_INACTIVE.on && inactive.length ? h('div', { class: 'home-projs', style: 'margin-top:4px;opacity:.6' }, inactive.map(projectRow)) : null,
     h('div', { class: 'hint' }, 'Progresso = etapas do ciclo (peso igual) × itens de checklist concluídos em cada uma (obrigatórios e opcionais; evidência exigida só conta com a evidência). Etapa sem checklist só conta depois de ultrapassada; 100% só ao concluir o ciclo.'));
 
   main.append(h('div', { class: 'page home-page' },
@@ -549,7 +564,8 @@ function renderProject(main, p) {
   main.append(h('div', { class: 'page' },
     h('div', { class: 'page-head' },
       h('div', { class: 'grow' }, h('h1', null, p.name), p.description ? h('div', { class: 'muted', style: 'margin-top:4px' }, p.description) : null,
-        h('div', { class: 'inline', style: 'margin-top:10px' }, pill(s.state, s.next ? `${STATE_LABEL[s.state]} · ${daysText(s.next.days)}` : undefined),
+        h('div', { class: 'inline', style: 'margin-top:10px' }, p.status === 'inactive' ? h('span', { class: 'pill', title: 'Fora da navegação e da Visão Geral' }, 'Inativo') : null,
+          pill(s.state, s.next ? `${STATE_LABEL[s.state]} · ${daysText(s.next.days)}` : undefined),
           stageOf(p) ? stageTag(stageOf(p)) : noStageTag(), projectTypeById(p.projectTypeId) ? stageTag(projectTypeById(p.projectTypeId)) : null,
           originSystemById(p.originSystemId) ? stageTag(originSystemById(p.originSystemId)) : null,
           p.pendencies?.requiredPending ? h('span', { class: 'pill soon', title: 'Itens obrigatórios não concluídos em qualquer etapa até a atual (a conclusão do projeto exige todos)' }, `${plural(p.pendencies.requiredPending, 'obrigatório pendente', 'obrigatórios pendentes')}`) : null,
@@ -559,6 +575,9 @@ function renderProject(main, p) {
         h('div', { class: 'proj-quick' }, rmQuickLaunch(p),
           p.whatsappGroupUrl ? h('a', { class: 'btn sm wa', href: p.whatsappGroupUrl, target: '_blank', rel: 'noopener noreferrer', title: 'Entrar no grupo do WhatsApp deste projeto' }, 'Grupo do WhatsApp') : null)),
       h('div', { class: 'actions inline' }, h('button', { class: 'btn', onclick: () => projectForm(p) }, 'Editar'),
+        h('button', { class: 'btn', title: p.status === 'inactive' ? 'Volta a aparecer na navegação e na Visão Geral' : 'Some da navegação e da Visão Geral; nada do histórico é apagado', onclick: async () => {
+          try { replaceProject(await api('POST', `/api/projects/${p.id}/status`, { status: p.status === 'inactive' ? 'active' : 'inactive' })); toast(p.status === 'inactive' ? 'Projeto reativado.' : 'Projeto inativado.'); } catch (e) { fail(e); }
+        } }, p.status === 'inactive' ? 'Reativar' : 'Inativar'),
         h('button', { class: 'btn', onclick: async () => {
           if (await confirmDialog({ title: 'Remover projeto', message: `Remover “${p.name}” do app? Isso apaga apenas o cadastro (pastas, arquivos e bases de dados não são tocados).`, okText: 'Remover cadastro', danger: true })) {
             try { await api('DELETE', `/api/projects/${p.id}`); location.hash = '#/'; await refresh(); } catch (e) { fail(e); }

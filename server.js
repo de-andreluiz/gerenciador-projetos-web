@@ -310,6 +310,17 @@ app.put('/api/projects/:id', async (req, res) => {
   res.json(publicProject(p));
 });
 
+// Inativar/reativar: só esconde da listagem padrão (histórico, horas e tudo mais continuam intactos). Diferente de excluir.
+app.post('/api/projects/:id/status', async (req, res) => {
+  const p = getProject(req.params.id);
+  const status = str(req.body.status, 20);
+  if (!['active', 'inactive'].includes(status)) throw httpError(400, 'Status inválido.');
+  p.status = status;
+  await store.save();
+  audit.log({ action: status === 'inactive' ? 'projeto-inativado' : 'projeto-reativado', project: p.name });
+  res.json(publicProject(p));
+});
+
 // Remove apenas o cadastro; nenhum arquivo em disco e nenhuma base é tocada.
 app.delete('/api/projects/:id', async (req, res) => {
   getProject(req.params.id);
